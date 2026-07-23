@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.next/
+.env
+.env.local
+# Allow production env file to be committed (used by Railway)
+!.env.production
+*.log
+logs/
+uploads/*
+!uploads/.gitkeep
+.DS_Store
+Thumbs.db
+*.sqlite
+coverage/
+.nyc_output/
