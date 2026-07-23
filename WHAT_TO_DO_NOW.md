@@ -1,43 +1,29 @@
-# 🚀 What To Do Now (Fix Registration)
+# 🚀 What To Do Now (Registration Fix - DONE & PUSHED)
 
-## Problem
-Registration fails because Railway has no `DATABASE_URL` variable. The `.env` file was never committed to GitHub.
+## What Was Fixed
+The `.env` file was gitignored, so Railway had **0 environment variables** — no `DATABASE_URL` — so Prisma couldn't connect to MySQL and registration failed.
 
-## Fix (Already Done - Just Deploy It)
-I've already fixed the code. You just need to push and deploy.
+I fixed it by creating `backend/.env.production` (committed to git) with the correct `DATABASE_URL`, plus better error handling, a database health check, and a seed script.
 
----
-
-## Step 1: Push to GitHub
-
-Open Command Prompt (cmd) and run:
-
-```bash
-cd c:\Users\neger\Desktop\crack
-git remote add origin https://github.com/YOUR_USERNAME/rattighetsplattform-backend.git
-git branch -M main
-git push -u origin main
-```
-
-**Replace `YOUR_USERNAME`** with your actual GitHub username.
+**✅ Code is already pushed to GitHub** at `https://github.com/Pingu662/rattighetsplattform-backend`
 
 ---
 
-## Step 2: Wait for Railway to Rebuild
+## Step 1: Wait for Railway to Rebuild
 
 1. Go to https://railway.app
 2. Click on your project
 3. Click "Deployments" tab
-4. Wait for the latest deployment to show "Success" (2-3 minutes)
+4. Wait for the latest deployment to show **"Success"** (2-3 minutes)
 5. Check the logs — you should see:
    ```
    ✅ Database: Connected
    ```
-   If you see `❌ Database: Connection failed`, check your MySQL host allows remote connections.
+   If you see `❌ Database: Connection failed`, your MySQL host (`sql112.hstn.me`) might block Railway's IP. You need to add Railway's IP to your webhost's "Remote MySQL" whitelist in cPanel.
 
 ---
 
-## Step 3: Run Seed Script
+## Step 2: Run Seed Script
 
 After deployment succeeds:
 
@@ -52,7 +38,7 @@ After deployment succeeds:
 
 ---
 
-## Step 4: Test Registration
+## Step 3: Test Registration
 
 Go to: http://mseet_42481750.thatserver.com/register
 
@@ -60,7 +46,7 @@ Try registering. It should work now! 🎉
 
 ---
 
-## Step 5: Verify (Optional)
+## Step 4: Verify (Optional)
 
 Check the health endpoint:
 ```
@@ -82,7 +68,7 @@ You should see:
 
 ## If It Still Doesn't Work
 
-1. **Check the health endpoint** above — if `database.status` is `disconnected`, the MySQL host (`sql112.hstn.me`) might block Railway's IP. You need to add Railway's IP to your webhost's "Remote MySQL" whitelist in cPanel.
+1. **Check the health endpoint** above — if `database.status` is `disconnected`, the MySQL host (`sql112.hstn.me`) might block Railway's IP. Add Railway's IP to your webhost's "Remote MySQL" whitelist in cPanel.
 
 2. **Check Railway logs** — the new error handling will show descriptive messages like:
    - "Kunde inte ansluta till databasen" (DB connection error)
@@ -104,3 +90,4 @@ You should see:
 | `backend/src/server.ts` | DB connection test at startup + health check |
 | `backend/src/seed.ts` | **NEW** — creates roles in database |
 | `backend/package.json` | Added `seed:prod` script |
+| `backend/.env.example` | **NEW** — template documenting all env vars |
