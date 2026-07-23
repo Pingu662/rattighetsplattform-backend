@@ -1,9 +1,13 @@
 # 🚀 What To Do Now (Registration Fix - DONE & PUSHED)
 
 ## What Was Fixed
+
 The `.env` file was gitignored, so Railway had **0 environment variables** — no `DATABASE_URL` — so Prisma couldn't connect to MySQL and registration failed.
 
-I fixed it by creating `backend/.env.production` (committed to git) with the correct `DATABASE_URL`, plus better error handling, a database health check, and a seed script.
+I fixed it by:
+1. Creating `backend/.env.production` (committed to git) with the correct `DATABASE_URL`
+2. **Fixing the Dockerfile** to copy `.env.production` into the Docker image (this was the missing piece!)
+3. Adding better error handling, a database health check, and a seed script
 
 **✅ Code is already pushed to GitHub** at `https://github.com/Pingu662/rattighetsplattform-backend`
 
@@ -83,6 +87,7 @@ You should see:
 | File | What Changed |
 |------|-------------|
 | `backend/.env.production` | **NEW** — has the DATABASE_URL, committed to git |
+| `backend/Dockerfile` | **FIXED** — added `COPY .env.production ./` so the env file gets into the Docker image |
 | `.gitignore` | Allows `.env.production` to be committed |
 | `backend/src/config/index.ts` | Loads `.env.production` in production |
 | `backend/railway.json` | Sets `NODE_ENV=production` |
