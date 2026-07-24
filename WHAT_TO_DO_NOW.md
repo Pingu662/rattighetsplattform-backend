@@ -8,9 +8,11 @@ I fixed it by:
 1. Creating `backend/.env.production` (committed to git) with the correct `DATABASE_URL`
 2. **Fixing the Dockerfile** to copy `.env.production` into the Docker image (this was the missing piece!)
 3. Adding better error handling, a database health check, and a seed script
-4. **Fixing CORS** — the backend now allows `localhost:3000` (for local frontend dev) and the Railway domain
+4. **Fixing CORS** — the backend now allows ALL origins (works from any frontend domain)
+5. **Auto-seed on startup** — the 6 roles are now created automatically when the server starts (no need to manually run `npm run seed:prod` in Railway)
+6. Updated `CORS_ORIGIN` to your frontend domain: `https://medborgarratt.zya.me`
 
-**✅ Code is already pushed to GitHub** at `https://github.com/Pingu662/rattighetsplattform-backend`
+**✅ Code is pushed to GitHub** at `https://github.com/Pingu662/rattighetsplattform-backend` (commit `be52965`)
 
 ---
 
@@ -18,78 +20,28 @@ I fixed it by:
 
 1. Go to https://railway.app
 2. Click on your project
-3. Click "Deployments" tab
-4. Wait for the latest deployment to show **"Success"** (2-3 minutes)
+3. Click **"Deployments"** tab
+4. Wait for the latest deployment (commit `be52965`) to show **"Success"** (2-3 minutes)
 5. Check the logs — you should see:
    ```
    ✅ Database: Connected
+   ✅ Auto-seed complete: 6 roles in database
    ```
    If you see `❌ Database: Connection failed`, your MySQL host (`sql112.hstn.me`) might block Railway's IP. You need to add Railway's IP to your webhost's "Remote MySQL" whitelist in cPanel.
 
 ---
 
-## Step 2: Run Seed Script
+## Step 2: Test Registration (No Manual Seed Needed!)
 
-After deployment succeeds:
+The seed now runs **automatically** when the server starts. You do NOT need to find the "Run" command in Railway.
 
-### Option A: Run via Railway UI (New UI)
-
-1. In Railway, go to your project
-2. Click on your service (the backend service)
-3. Click the **"Deployments"** tab
-4. Find the latest successful deployment (green checkmark)
-5. Click the **three dots (⋯)** menu on that deployment
-6. Select **"Run Command"** (or "Shell")
-7. Run this command:
-   ```bash
-   npm run seed:prod
-   ```
-8. You should see: `✅ Seed complete: 6 roles seeded successfully`
-
-### Option B: Run via Railway Settings (Alternative)
-
-1. In Railway, go to your project
-2. Click on your service
-3. Click **"Settings"** tab
-4. Scroll down to **"Variables"** section
-5. Click **"..."** (three dots) → **"Run"**
-6. Run this command:
-   ```bash
-   npm run seed:prod
-   ```
-
-### Option C: Run Locally Against Production Database
-
-If you can't find the Run command in Railway:
-
-1. Make sure you have Node.js installed
-2. Install dependencies:
-   ```bash
-   cd backend && npm install
-   ```
-3. Build the project:
-   ```bash
-   npm run build
-   ```
-4. Run the seed with production env:
-   ```bash
-   NODE_ENV=production npm run seed:prod
-   ```
-   This uses the `DATABASE_URL` from `backend/.env.production` to connect directly to your MySQL database.
-
----
-
-## Step 3: Test Registration
-
-Go to: http://mseet_42481750.thatserver.com/register
+Go to: https://medborgarratt.zya.me/register
 
 Try registering. It should work now! 🎉
 
-> **Note:** If you're testing locally (frontend running on `http://localhost:3000`), the CORS fix allows this. The backend will accept requests from `localhost:3000`.
-
 ---
 
-## Step 4: Verify (Optional)
+## Step 3: Verify (Optional)
 
 Check the health endpoint:
 ```
@@ -119,7 +71,7 @@ You should see:
 
 3. **Make sure you imported the database schema** — go to phpMyAdmin and import `database/mysql_schema.sql` if you haven't already.
 
-4. **CORS errors?** — The latest code allows `localhost:3000` in development mode and the production domain in production. Make sure you're running the latest deployed version.
+4. **CORS errors?** — The latest code allows ALL origins, so CORS should not be an issue anymore. Make sure you're running the latest deployed version (commit `be52965`).
 
 ---
 
@@ -127,13 +79,13 @@ You should see:
 
 | File | What Changed |
 |------|-------------|
-| `backend/.env.production` | **NEW** — has the DATABASE_URL, committed to git |
+| `backend/.env.production` | **NEW** — has the DATABASE_URL, committed to git. CORS_ORIGIN updated to `https://medborgarratt.zya.me` |
 | `backend/Dockerfile` | **FIXED** — added `COPY .env.production ./` so the env file gets into the Docker image |
 | `.gitignore` | Allows `.env.production` to be committed |
 | `backend/src/config/index.ts` | Loads `.env.production` in production |
 | `backend/railway.json` | Sets `NODE_ENV=production` |
 | `backend/src/routes/auth.ts` | Better error messages for DB errors |
-| `backend/src/server.ts` | DB connection test at startup + health check + **CORS fix** (allows localhost:3000) |
+| `backend/src/server.ts` | DB connection test at startup + health check + **CORS fix (allow all origins)** + **auto-seed on startup** |
 | `backend/src/seed.ts` | **NEW** — creates roles in database |
 | `backend/package.json` | Added `seed:prod` script |
 | `backend/.env.example` | **NEW** — template documenting all env vars |
