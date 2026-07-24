@@ -29,32 +29,10 @@ const app = express();
 // Security middleware
 app.use(helmet());
 
-// CORS - allow all origins in development, restrict in production
-const isDev = config.env === 'development';
-const allowedOrigins = [
-  config.cors.origin,
-  'http://mseet_42481750.thatserver.com',
-  'http://localhost:3000',
-  'http://localhost:5000',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:5000',
-  'https://rattighetsplattform-backend-production.up.railway.app',
-];
-
+// CORS - allow all origins (reflects the request origin back)
+// This ensures the API works from any frontend domain (webhosting, localhost, etc.)
 app.use(cors({
-  origin: (origin, callback) => {
-    // In development, allow all origins (including localhost)
-    if (isDev || !origin) {
-      callback(null, true);
-      return;
-    }
-    // In production, check against allowed list
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
@@ -146,6 +124,31 @@ const startServer = async () => {
       await prisma.$connect();
       logger.info('Database connection established successfully');
       console.log('✅ Database: Connected');
+
+      // Auto-seed roles on startup (idempotent - safe to run every time)
+      try {
+        logger.info('Running auto-seed...');
+        const roles = [
+          { id: 1, name: 'super_admin', description: 'Full system access', permissions: ['all'] },
+          { id: 2, name: 'admin', description: 'Administrative access', permissions: ['manage_users', 'manage_cases', 'manage_documents', 'manage_ai', 'moderate_forum', 'view_stats'] },
+          { id: 3, name: 'jurist', description: 'Verified legal professional', permissions: ['create_forum', 'answer_questions', 'access_library', 'upload_cases'] },
+          { id: 4, name: 'moderator', description: 'Forum and content moderation', permissions: ['moderate_forum', 'manage_categories', 'hide_content'] },
+          { id: 5, name: 'expert', description: 'Subject matter expert', permissions: ['create_forum', 'access_library', 'upload_cases', 'comment_cases'] },
+          { id: 6, name: 'user', description: 'Standard user', permissions: ['view_cases', 'create_appeals', 'upload_documents', 'use_ai', 'forum_participate'] },
+        ];
+        for (const role of roles) {
+          await prisma.role.upsert({
+            where: { id: role.id },
+            update: { name: role.name, description: role.description, permissions: role.permissions },
+            create: { id: role.id, name: role.name, description: role.description, permissions: role.permissions },
+          });
+        }
+        const roleCount = await prisma.role.count();
+        console.log(`✅ Auto-seed complete: ${roleCount} roles in database`);
+      } catch (seedError: any) {
+        logger.error('Auto-seed failed:', seedError);
+        console.log('⚠️  Auto-seed failed (server will still start)');
+      }
     } catch (dbError: any) {
       logger.error('Database connection failed:', {
         message: dbError?.message || 'Unknown error',
