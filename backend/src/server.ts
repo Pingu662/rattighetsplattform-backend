@@ -29,7 +29,8 @@ const app = express();
 // Security middleware
 app.use(helmet());
 
-// CORS - allow configured origin plus common local/development origins
+// CORS - allow all origins in development, restrict in production
+const isDev = config.env === 'development';
 const allowedOrigins = [
   config.cors.origin,
   'http://mseet_42481750.thatserver.com',
@@ -37,11 +38,18 @@ const allowedOrigins = [
   'http://localhost:5000',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5000',
+  'https://rattighetsplattform-backend-production.up.railway.app',
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // In development, allow all origins (including localhost)
+    if (isDev || !origin) {
+      callback(null, true);
+      return;
+    }
+    // In production, check against allowed list
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
