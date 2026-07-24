@@ -1,0 +1,650 @@
+// ============================================================
+// PRISMA SCHEMA - Digital Rättighetsplattform
+// MySQL version for your webhost
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "debian-openssl-1.1.x", "linux-musl", "linux-musl-omri"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?  @db.Text
+  permissions Json     @default("[]")
+  users       User[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("roles")
+}
+
+model User {
+  id                   Int      @id @default(autoincrement())
+  uuid                 String   @unique
+  personalNumber       String?  @unique @map("personal_number")
+  email                String   @unique
+  passwordHash         String   @map("password_hash")
+  firstName            String?  @map("first_name")
+  lastName             String?  @map("last_name")
+  phone                String?
+  roleId               Int      @default(6) @map("role_id")
+  role                 Role     @relation(fields: [roleId], references: [id])
+  isVerified           Boolean  @default(false) @map("is_verified")
+  isActive             Boolean  @default(true) @map("is_active")
+  isBankIdVerified     Boolean  @default(false) @map("is_bankid_verified")
+  bankIdPersonalNumber String?  @map("bankid_personal_number")
+  avatarUrl            String?  @map("avatar_url")
+  twoFactorEnabled     Boolean  @default(false) @map("two_factor_enabled")
+  twoFactorSecret      String?  @map("two_factor_secret")
+  lastLoginAt          DateTime? @map("last_login_at")
+  loginAttempts        Int      @default(0) @map("login_attempts")
+  lockedUntil          DateTime? @map("locked_until")
+  preferredLanguage    String   @default("sv") @map("preferred_language")
+  themePreference      String   @default("light") @map("theme_preference")
+  emailNotifications   Boolean  @default(true) @map("email_notifications")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  myCases           MyCase[]
+  appealCases       AppealCase[]
+  documents         Document[]
+  documentVersions  DocumentVersion[]
+  documentSharesShared DocumentShare[] @relation("documentSharesShared")
+  documentSharesReceived DocumentShare[] @relation("documentSharesReceived")
+  aiConversations   AiConversation[]
+  aiLogs            AiLog[]
+  favorites         Favorite[]
+  savedRulings      SavedRuling[]
+  forumTopics       ForumTopic[]
+  forumReplies      ForumReply[]
+  caseComments      CaseComment[]
+  juristProfile     JuristProfile?
+  juristVerificationsSubmitted JuristVerification[] @relation("jurist_verifications_submitted")
+  juristVerificationsReviewed  JuristVerification[] @relation("jurist_verifications_reviewed")
+  petitions         Petition[]
+  petitionSignatures PetitionSignature[]
+  sessions          Session[]
+  refreshTokens     RefreshToken[]
+  bankIdSessions    BankIdSession[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  systemSettings    SystemSetting[]
+  approvedDocuments Document[] @relation("documents_approved")
+  approvedLegalCases LegalCase[] @relation("legal_cases_approved")
+  uploadedLegalCases LegalCase[] @relation("legal_cases_uploaded")
+  verifiedJurists   JuristProfile[] @relation("jurists_verified")
+  assignedCases     MyCase[] @relation("assigned_jurist")
+  lastReplyTopics   ForumTopic[] @relation("last_reply_user")
+
+  @@map("users")
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String   @unique @map("session_token")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  deviceInfo   Json?    @map("device_info")
+  isActive     Boolean  @default(true) @map("is_active")
+  expiresAt    DateTime @map("expires_at")
+  auditLogs    AuditLog[]
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("sessions")
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique @map("token_hash")
+  deviceInfo Json?    @map("device_info")
+  ipAddress String?   @map("ip_address")
+  isRevoked Boolean   @default(false) @map("is_revoked")
+  revokedAt DateTime? @map("revoked_at")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("refresh_tokens")
+}
+
+model BankIdSession {
+  id              Int       @id @default(autoincrement())
+  userId          Int?      @map("user_id")
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  orderRef        String    @unique @map("order_ref")
+  autoStartToken  String?   @map("auto_start_token")
+  status          String    @default("pending")
+  personalNumber  String?   @map("personal_number")
+  givenName       String?   @map("given_name")
+  surname         String?   @map("surname")
+  ipAddress       String?   @map("ip_address")
+  userAgent       String?   @map("user_agent")
+  purpose         String?   @default("login")
+  signatureData   String?   @map("signature_data")
+  ocspResponse    String?   @map("ocsp_response")
+  completedAt     DateTime? @map("completed_at")
+  errorMessage    String?   @map("error_message")
+  petitionSignatures PetitionSignature[]
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@map("bankid_sessions")
+}
+
+model MyCase {
+  id              Int           @id @default(autoincrement())
+  uuid            String        @unique
+  userId          Int           @map("user_id")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?       @db.Text
+  caseType        String?       @map("case_type")
+  authority       String?
+  authorityDepartment String?   @map("authority_department")
+  caseNumber      String?       @map("case_number")
+  status          String        @default("open")
+  priority        String        @default("normal")
+  category        String?
+  tags            Json          @default("[]")
+  deadline        DateTime?
+  assignedJuristId Int?         @map("assigned_jurist_id")
+  assignedJurist  User?         @relation("assigned_jurist", fields: [assignedJuristId], references: [id], onDelete: SetNull)
+  isArchived      Boolean       @default(false) @map("is_archived")
+  metadata        Json?
+  appealCases     AppealCase[]
+  documents       Document[]
+  aiConversations AiConversation[]
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@map("my_cases")
+}
+
+model LegalCase {
+  id              Int            @id @default(autoincrement())
+  uuid            String         @unique
+  title           String
+  caseNumber      String         @map("case_number")
+  court           String
+  courtType       String?        @map("court_type")
+  caseType        String?        @map("case_type")
+  category        String?
+  subcategory     String?
+  year            Int?
+  rulingDate      DateTime?      @map("ruling_date")
+  publishedDate   DateTime?      @map("published_date")
+  summary         String?        @db.Text
+  fullText        String?        @db.LongText
+  keywords        Json           @default("[]")
+  lawsCited       Json           @default("[]") @map("laws_cited")
+  precedentsCited Json           @default("[]") @map("precedents_cited")
+  outcome         String?
+  parties         Json?
+  pdfUrl          String?        @map("pdf_url")
+  sourceUrl       String?        @map("source_url")
+  language        String         @default("sv")
+  isFeatured      Boolean        @default(false) @map("is_featured")
+  aiSummary       String?        @db.Text
+  embeddingId     String?        @map("embedding_id")
+  uploaderId      Int?           @map("uploader_id")
+  uploader        User?          @relation("legal_cases_uploaded", fields: [uploaderId], references: [id], onDelete: SetNull)
+  isApproved      Boolean        @default(false) @map("is_approved")
+  approvedBy      Int?           @map("approved_by")
+  approver        User?          @relation("legal_cases_approved", fields: [approvedBy], references: [id], onDelete: SetNull)
+  approvedAt      DateTime?      @map("approved_at")
+  viewCount       Int            @default(0) @map("view_count")
+  metadata        Json?
+  caseRulings     CaseRuling[]
+  caseComments    CaseComment[]
+  savedRulings    SavedRuling[]
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  @@map("legal_cases")
+}
+
+model CaseRuling {
+  id          Int       @id @default(autoincrement())
+  legalCaseId Int       @map("legal_case_id")
+  legalCase   LegalCase @relation(fields: [legalCaseId], references: [id], onDelete: Cascade)
+  instance    String?
+  rulingDate  DateTime? @map("ruling_date")
+  decision    String?   @db.Text
+  reasoning   String?   @db.Text
+  legalBasis  Json      @default("[]") @map("legal_basis")
+  outcome     String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("case_rulings")
+}
+
+model CaseComment {
+  id              Int         @id @default(autoincrement())
+  legalCaseId     Int         @map("legal_case_id")
+  legalCase       LegalCase   @relation(fields: [legalCaseId], references: [id], onDelete: Cascade)
+  userId          Int         @map("user_id")
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content         String      @db.Text
+  isExpertComment Boolean     @default(false) @map("is_expert_comment")
+  isHidden        Boolean     @default(false) @map("is_hidden")
+  parentId        Int?        @map("parent_id")
+  parent          CaseComment? @relation("CaseCommentToCaseComment", fields: [parentId], references: [id], onDelete: Cascade)
+  children        CaseComment[] @relation("CaseCommentToCaseComment")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  @@map("case_comments")
+}
+
+model AppealCase {
+  id                   Int      @id @default(autoincrement())
+  uuid                 String   @unique
+  userId               Int      @map("user_id")
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  myCaseId             Int?     @map("my_case_id")
+  myCase               MyCase?  @relation(fields: [myCaseId], references: [id], onDelete: SetNull)
+  title                String
+  authorityName        String?  @map("authority_name")
+  authorityDecisionDate DateTime? @map("authority_decision_date")
+  authorityCaseNumber  String?  @map("authority_case_number")
+  originalDecision     String?  @db.LongText
+  aiAnalysis           Json?    @map("ai_analysis")
+  identifiedErrors     Json     @default("[]") @map("identified_errors")
+  identifiedLawViolations Json @default("[]") @map("identified_law_violations")
+  citedLegalCases      Json     @default("[]") @map("cited_legal_cases")
+  citedLaws            Json     @default("[]") @map("cited_laws")
+  appealText           String?  @db.LongText
+  appealSimpleText     String?  @db.LongText
+  appealStatus         String   @default("draft") @map("appeal_status")
+  submissionDate       DateTime? @map("submission_date")
+  submittedTo          String?  @map("submitted_to")
+  responseDate         DateTime? @map("response_date")
+  responseText         String?  @db.Text
+  outcome              String?
+  isAiGenerated        Boolean  @default(true) @map("is_ai_generated")
+  metadata             Json?
+  documents            Document[]
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("appeal_cases")
+}
+
+model Document {
+  id               Int       @id @default(autoincrement())
+  uuid             String    @unique
+  userId           Int       @map("user_id")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  myCaseId         Int?      @map("my_case_id")
+  myCase           MyCase?   @relation(fields: [myCaseId], references: [id], onDelete: SetNull)
+  appealCaseId     Int?      @map("appeal_case_id")
+  appealCase       AppealCase? @relation(fields: [appealCaseId], references: [id], onDelete: SetNull)
+  originalFilename String    @map("original_filename")
+  storedFilename   String    @map("stored_filename")
+  filePath         String    @map("file_path")
+  fileSize         BigInt?   @map("file_size")
+  mimeType         String?   @map("mime_type")
+  fileType         String?   @map("file_type")
+  documentCategory String?   @map("document_category")
+  description      String?   @db.Text
+  aiProcessed      Boolean   @default(false) @map("ai_processed")
+  aiAnalysis       Json?     @map("ai_analysis")
+  ocrText          String?   @db.LongText
+  extractedText    String?   @db.LongText
+  pageCount        Int?      @map("page_count")
+  isEncrypted      Boolean   @default(false) @map("is_encrypted")
+  encryptionKeyHash String?  @map("encryption_key_hash")
+  checksum         String?
+  isApproved       Boolean   @default(false) @map("is_approved")
+  approvedBy       Int?      @map("approved_by")
+  approver         User?     @relation("documents_approved", fields: [approvedBy], references: [id], onDelete: SetNull)
+  metadata         Json?
+  versions         DocumentVersion[]
+  shares           DocumentShare[]
+  juristLicenseDocuments JuristVerification[] @relation("jurist_license_docs")
+  juristIdentDocuments   JuristVerification[] @relation("jurist_ident_docs")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id             Int      @id @default(autoincrement())
+  documentId     Int      @map("document_id")
+  document       Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versionNumber  Int      @map("version_number")
+  storedFilename String   @map("stored_filename")
+  fileSize       BigInt?
+  checksum       String?
+  changeNotes    String?  @map("change_notes")
+  createdBy      Int      @map("created_by")
+  creator        User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@map("document_versions")
+}
+
+model DocumentShare {
+  id              Int      @id @default(autoincrement())
+  documentId      Int      @map("document_id")
+  document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sharedBy        Int      @map("shared_by")
+  sharer          User     @relation("documentSharesShared", fields: [sharedBy], references: [id], onDelete: Cascade)
+  sharedWith      Int?     @map("shared_with")
+  recipient       User?    @relation("documentSharesReceived", fields: [sharedWith], references: [id], onDelete: SetNull)
+  shareToken      String?  @unique @map("share_token")
+  permissionLevel String   @default("view") @map("permission_level")
+  expiresAt       DateTime? @map("expires_at")
+  accessCount     Int      @default(0) @map("access_count")
+  isRevoked       Boolean  @default(false) @map("is_revoked")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("document_shares")
+}
+
+model AiConversation {
+  id               Int          @id @default(autoincrement())
+  uuid             String       @unique
+  userId           Int          @map("user_id")
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  myCaseId         Int?         @map("my_case_id")
+  myCase           MyCase?      @relation(fields: [myCaseId], references: [id], onDelete: SetNull)
+  title            String?
+  aiProvider       String       @default("openai") @map("ai_provider")
+  aiModel          String?      @map("ai_model")
+  conversationType String       @default("chat") @map("conversation_type")
+  systemPrompt     String?      @db.Text
+  contextDocuments Json         @default("[]") @map("context_documents")
+  tokenCount       Int          @default(0) @map("token_count")
+  messageCount     Int          @default(0) @map("message_count")
+  isArchived       Boolean      @default(false) @map("is_archived")
+  metadata         Json?
+  messages         AiMessage[]
+  aiLogs           AiLog[]
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id             Int            @id @default(autoincrement())
+  conversationId Int            @map("conversation_id")
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String
+  content        String         @db.LongText
+  messageType    String         @default("text") @map("message_type")
+  tokensUsed     Int?           @map("tokens_used")
+  modelUsed      String?        @map("model_used")
+  metadata       Json?
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  @@map("ai_messages")
+}
+
+model AiLog {
+  id             Int            @id @default(autoincrement())
+  userId         Int            @map("user_id")
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId Int?           @map("conversation_id")
+  conversation   AiConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  provider       String
+  model          String
+  promptTokens   Int            @default(0) @map("prompt_tokens")
+  completionTokens Int          @default(0) @map("completion_tokens")
+  totalTokens    Int            @default(0) @map("total_tokens")
+  cost           Float          @default(0)
+  durationMs     Int?           @map("duration_ms")
+  endpoint       String?
+  status         String         @default("success")
+  errorMessage   String?        @map("error_message")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  @@map("ai_logs")
+}
+
+model Favorite {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @map("user_id")
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favoriteType  String   @map("favorite_type")
+  referenceId   Int      @map("reference_id")
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, favoriteType, referenceId])
+  @@map("favorites")
+}
+
+model SavedRuling {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  legalCaseId Int       @map("legal_case_id")
+  legalCase   LegalCase @relation(fields: [legalCaseId], references: [id], onDelete: Cascade)
+  notes       String?
+  tags        Json      @default("[]")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, legalCaseId])
+  @@map("saved_rulings")
+}
+
+model ForumCategory {
+  id               Int           @id @default(autoincrement())
+  name             String
+  slug             String        @unique
+  description      String?       @db.Text
+  icon             String?
+  sortOrder        Int           @default(0) @map("sort_order")
+  isActive         Boolean       @default(true) @map("is_active")
+  requiresVerified Boolean       @default(false) @map("requires_verified")
+  topics           ForumTopic[]
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  @@map("forum_categories")
+}
+
+model ForumTopic {
+  id               Int           @id @default(autoincrement())
+  uuid             String        @unique
+  forumCategoryId  Int           @map("forum_category_id")
+  forumCategory    ForumCategory @relation(fields: [forumCategoryId], references: [id], onDelete: Cascade)
+  userId           Int           @map("user_id")
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  content          String        @db.LongText
+  isPinned         Boolean       @default(false) @map("is_pinned")
+  isLocked         Boolean       @default(false) @map("is_locked")
+  isHidden         Boolean       @default(false) @map("is_hidden")
+  isSolved         Boolean       @default(false) @map("is_solved")
+  hasExpertAnswer  Boolean       @default(false) @map("has_expert_answer")
+  tags             Json          @default("[]")
+  viewCount        Int           @default(0) @map("view_count")
+  replyCount       Int           @default(0) @map("reply_count")
+  lastReplyAt      DateTime?     @map("last_reply_at")
+  lastReplyUserId  Int?          @map("last_reply_user_id")
+  lastReplyUser    User?         @relation("last_reply_user", fields: [lastReplyUserId], references: [id], onDelete: SetNull)
+  replies          ForumReply[]
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  @@map("forum_topics")
+}
+
+model ForumReply {
+  id            Int        @id @default(autoincrement())
+  topicId       Int        @map("topic_id")
+  topic         ForumTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  userId        Int        @map("user_id")
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content       String     @db.LongText
+  isExpertAnswer Boolean   @default(false) @map("is_expert_answer")
+  isBestAnswer  Boolean    @default(false) @map("is_best_answer")
+  isHidden      Boolean    @default(false) @map("is_hidden")
+  parentId      Int?       @map("parent_id")
+  parent        ForumReply? @relation("ForumReplyToForumReply", fields: [parentId], references: [id], onDelete: Cascade)
+  children      ForumReply[] @relation("ForumReplyToForumReply")
+  helpfulCount  Int        @default(0) @map("helpful_count")
+  isEdited      Boolean    @default(false) @map("is_edited")
+  editedAt      DateTime?  @map("edited_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  @@map("forum_replies")
+}
+
+model JuristProfile {
+  id                       Int              @id @default(autoincrement())
+  userId                   Int              @unique @map("user_id")
+  user                     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber            String?          @map("license_number")
+  specialization           Json             @default("[]")
+  yearsOfExperience        Int?             @map("years_of_experience")
+  lawFirm                  String?          @map("law_firm")
+  officeAddress            String?          @map("office_address")
+  city                     String?
+  bio                      String?          @db.Text
+  education                Json             @default("[]")
+  languages                Json             @default("[\"svenska\"]")
+  consultationFee          Float?         @map("consultation_fee")
+  freeConsultation         Boolean          @default(false) @map("free_consultation")
+  availableForConsultation Boolean          @default(false) @map("available_for_consultation")
+  averageRating            Float          @default(0) @map("average_rating")
+  reviewCount              Int              @default(0) @map("review_count")
+  answerCount              Int              @default(0) @map("answer_count")
+  verifiedAt               DateTime?        @map("verified_at")
+  verifiedBy               Int?             @map("verified_by")
+  verifier                 User?            @relation("jurists_verified", fields: [verifiedBy], references: [id], onDelete: SetNull)
+  isVerified               Boolean          @default(false) @map("is_verified")
+  isFeatured               Boolean          @default(false) @map("is_featured")
+  metadata                 Json?
+  createdAt                DateTime         @default(now()) @map("created_at")
+  updatedAt                DateTime         @updatedAt @map("updated_at")
+
+  @@map("jurist_profiles")
+}
+
+model JuristVerification {
+  id                       Int       @id @default(autoincrement())
+  userId                   Int       @map("user_id")
+  user                     User      @relation("jurist_verifications_submitted", fields: [userId], references: [id], onDelete: Cascade)
+  status                   String    @default("pending")
+  licenseDocumentId        Int?      @map("license_document_id")
+  licenseDocument          Document? @relation("jurist_license_docs", fields: [licenseDocumentId], references: [id], onDelete: SetNull)
+  identificationDocumentId Int?      @map("identification_document_id")
+  identificationDocument   Document? @relation("jurist_ident_docs", fields: [identificationDocumentId], references: [id], onDelete: SetNull)
+  submittedNotes           String?   @map("submitted_notes")
+  reviewedBy               Int?      @map("reviewed_by")
+  reviewer                 User?     @relation("jurist_verifications_reviewed", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewNotes              String?   @map("review_notes")
+  reviewedAt               DateTime? @map("reviewed_at")
+  expiredAt                DateTime? @map("expired_at")
+  createdAt                DateTime  @default(now()) @map("created_at")
+
+  @@map("jurist_verifications")
+}
+
+model Petition {
+  id              Int      @id @default(autoincrement())
+  uuid            String   @unique
+  userId          Int       @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  description     String   @db.Text
+  targetAuthority String?  @map("target_authority")
+  category        String?
+  signatureGoal   Int      @default(100) @map("signature_goal")
+  signatureCount  Int      @default(0) @map("signature_count")
+  status          String   @default("active")
+  startDate       DateTime @default(now()) @map("start_date")
+  endDate         DateTime? @map("end_date")
+  responseText    String?  @db.Text
+  responseDate    DateTime? @map("response_date")
+  isFeatured      Boolean  @default(false) @map("is_featured")
+  tags            Json     @default("[]")
+  metadata        Json?
+  signatures      PetitionSignature[]
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("petitions")
+}
+
+model PetitionSignature {
+  id                 Int           @id @default(autoincrement())
+  petitionId         Int           @map("petition_id")
+  petition           Petition      @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+  userId             Int?          @map("user_id")
+  user               User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  signerName         String?       @map("signer_name")
+  signerPersonalNumber String?     @map("signer_personal_number")
+  signerCity         String?       @map("signer_city")
+  isAnonymous        Boolean       @default(false) @map("is_anonymous")
+  isBankIdVerified   Boolean       @default(false) @map("is_bankid_verified")
+  bankIdSessionId    Int?          @map("bankid_session_id")
+  bankIdSession      BankIdSession? @relation(fields: [bankIdSessionId], references: [id], onDelete: SetNull)
+  signatureData      String?       @map("signature_data")
+  ipAddress          String?       @map("ip_address")
+  userAgent          String?       @map("user_agent")
+  createdAt          DateTime      @default(now()) @map("created_at")
+
+  @@unique([petitionId, userId])
+  @@unique([petitionId, signerPersonalNumber])
+  @@map("petition_signatures")
+}
+
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  userId     Int?     @map("user_id")
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   Int?     @map("entity_id")
+  changes    Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  sessionId  Int?     @map("session_id")
+  session    Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String?   @db.Text
+  data      Json?
+  isRead    Boolean   @default(false) @map("is_read")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+model SystemSetting {
+  id           Int      @id @default(autoincrement())
+  settingKey   String   @unique @map("setting_key")
+  settingValue Json     @map("setting_value")
+  description  String?  @db.Text
+  updatedBy    Int?     @map("updated_by")
+  updater      User?    @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}
